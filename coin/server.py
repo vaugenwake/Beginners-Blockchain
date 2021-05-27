@@ -38,9 +38,7 @@ class Server:
                 # Wait for new messages to be recieved (potental DDoS risk)
                 data = await reader.readuntil(b"\n")
 
-                decoded_data = data.decode("uft8").strip()
-
-                logger.info(decoded_data)
+                decoded_data = data.decode("utf-8").strip()
 
                 # Validate the decoded message matches and expected structure.
                 try:
@@ -66,7 +64,7 @@ class Server:
                 logger.error("Something went wrong, closing peer connection")
                 break
 
-    async def listen(self, hostname='0.0.0.0', port=8888):
+    async def listen(self, hostname='127.0.0.1', port=8888):
         server = await asyncio.start_server(self.handle_connection, hostname, port)
         logger.info(f"Server listening on {hostname}:{port}")
 
