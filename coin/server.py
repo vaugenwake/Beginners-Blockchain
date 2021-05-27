@@ -1,6 +1,9 @@
-from asyncio import StreamReader, StreamWriter
+from asyncio import StreamReader, StreamWriter, IncompleteReadError
+from marshmallow.exceptions import MarshmallowError
 import asyncio
-from coin.utils import get_external_ip
+import coin.utils
+
+from coin.messages import BaseSchema
 
 import structlog
 
@@ -24,13 +27,28 @@ class Server:
             raise Exception("Could not start")
 
     async def get_external_ip(self):
-        self.external_ip = await get_external_ip()
+        self.external_ip = await coin.utils.get_external_ip()
 
-    def handle_connection(self, reader: StreamReader, writer: StreamWriter):
-        pass
+    async def handle_connection(self, reader: StreamReader, writer: StreamWriter):
+        while True:
+            try:
+                # Wait for new messages to be recieved (potental DDoS risk)
+                data = await reader.readuntil(b"\n")
 
-    def get_external_ip(self):
-        pass
+                decoded_data = data.decode("uft8").strip()
+
+                logger.info(decoded_data)
+
+                # Validate the decoded message matches and expected structure.
+                try:
+                    message = BaseSchema().loads(decoded_data)
+                except MarshmallowError:
+                    logger.error("Recieved unreadable message", peer=writer)
+                    break
+
+            except (IncompleteReadError, ConnectionError):
+                logger.error("Something went wrong, closing peer connection")
+                break
 
     async def listen(self, hostname='0.0.0.0', port=8888):
         server = await asyncio.start_server(self.handle_connection, hostname, port)

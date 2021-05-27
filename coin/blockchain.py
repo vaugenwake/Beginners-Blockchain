@@ -18,7 +18,7 @@ class Blockchain(object):
     def __init__(self):
         self.chain = []
         self.pending_transactions = []
-        self.target = "0000"
+        self.target = "0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 
         # Create the genesis block
         logger.info("Creating genesis block")
