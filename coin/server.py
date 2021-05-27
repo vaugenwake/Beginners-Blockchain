@@ -4,6 +4,9 @@ import asyncio
 import coin.utils
 
 from coin.messages import BaseSchema
+from coin.blockchain import Blockchain
+from coin.connections import ConnectionPool
+from coin.peers import P2PProtocol
 
 import structlog
 
@@ -12,7 +15,7 @@ logger = structlog.getLogger()
 
 class Server:
 
-    def __init__(self, blockchain, connection_pool, p2p_protocol):
+    def __init__(self, blockchain: Blockchain, connection_pool: ConnectionPool, p2p_protocol: P2PProtocol):
         self.blockchain = blockchain
         self.connection_pool = connection_pool
         self.p2p_protocol = p2p_protocol
@@ -44,6 +47,19 @@ class Server:
                     message = BaseSchema().loads(decoded_data)
                 except MarshmallowError:
                     logger.error("Recieved unreadable message", peer=writer)
+                    break
+
+                # Extract the address from the message, add it to the writer object
+                writer.address = message["meta"]["address"]
+
+                # Add the peer to our connection pool
+                self.connection_pool.add_peer(writer)
+
+                # handle the message
+                await self.p2p_protocol.handle_message(message, writer)
+
+                await writer.drain()
+                if writer.is_closing():
                     break
 
             except (IncompleteReadError, ConnectionError):
